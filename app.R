@@ -21,11 +21,6 @@ ui <- fluidPage(
                         selected = c("COL", "THA", "GHA"),
                         multiple = TRUE,
                         selectize = TRUE),
-            sliderInput("year_range",
-                        "Select years",
-                        min = 1981,
-                        max = 2020,
-                        value = c(1990, 2020)),
             selectInput("datatype",
                         "Select type of data",
                         datatype_selection,
@@ -37,7 +32,12 @@ ui <- fluidPage(
                         coverage_selection,
                         multiple = TRUE,
                         selected = c("National", "Urban", "Rural", "National (Aggregate)"),
-                        selectize = TRUE)
+                        selectize = TRUE),
+            sliderInput("year_range",
+                        "Select years",
+                        min = 1981,
+                        max = 2020,
+                        value = c(1990, 2020))
         ),
 
         # Show a plot of the generated distribution
