@@ -3,12 +3,15 @@ source("setup.R")
 
 # Define UI for application that draws a histogram
 ui <- fluidPage(
+    theme = shinythemes::shinytheme("flatly"),
 
     # Application title
-    titlePanel("Comparability database"),
-
+    titlePanel("Exploring comparable trends in poverty and inequality indicators"),
+    uiOutput("paragraph"),
+    
     # Sidebar with a slider input for number of bins 
     sidebarLayout(
+        
         sidebarPanel(
             selectInput("indicator",
                         "Select indicator",
@@ -42,48 +45,105 @@ ui <- fluidPage(
 
         # Show a plot of the generated distribution
         mainPanel(
-           plotlyOutput("line_chart", height = "600px")
+           plotlyOutput("line_chart", height = "600px"),
+           plotlyOutput("legend", height = "300px")
         )
     )
 )
 
 # Define server logic required to draw a histogram
 server <- function(input, output) {
-
-    output$line_chart <- renderPlotly({
-        # generate bins based on input$bins from ui.R
-        tmp <- df %>%
+    
+    output$paragraph <- renderUI({
+        tagList(
+            p("As countries frequently improve household surveys and measurement methodologies,
+      strict comparability of poverty estimates over time is often limited. 
+      This app allows you to visualize when those methodological changes took place.",
+      br(), "Read more on the comparability metadata database and methodologie in ", 
+      url_paper, " and ", url_blog, ". Data sources for this application can be accessed here:
+       ", url_povcal, " and ", url_data, ".", br()
+            )
+        )
+    })
+    
+    # generate bins based on input$bins from ui.R
+    out <- reactive({
+        out <- df %>%
             filter(countrycode %in% input$country_list,
                    year %in% input$year_range[1]:input$year_range[2],
                    datatype %in% input$datatype,
-                   coveragetype %in% input$coverage)
-        tmp <- tmp[, c("countryname", "year", "legend_keys", input$indicator)]
-        colnames(tmp) <- c("countryname", "year", "legend_keys", "value")
+                   coveragetype %in% input$coverage) %>%
+          arrange(legend_keys)
+        out <- out[, c("countryname", "year", "legend_keys", "datatype", input$indicator)]
+        colnames(out) <- c("countryname", "year", "legend_keys", "datatype", "value")
+        
+        pad_length <- max(stringr::str_length(out$legend_keys))
+        out$legend_keys <- stringr::str_pad(out$legend_keys, width = pad_length, 
+                                            side = "right", pad = " ")
+        
+        return(out)
+    })
 
+    output$line_chart <- renderPlotly({
+        
+        selected_indicator <- names(indicator_selection)[indicator_selection == input$indicator]
 
-
-        p <- ggplot(tmp, aes(x = year, y = value, color = countryname)) +
-            geom_line(aes(linetype = legend_keys), size = rel(.8)) +
-            #scale_y_continuous(limits = c(35, 55), breaks = c(35, 40, 45, 50, 55)) +
-            #scale_x_continuous(breaks = c(1990, 2000, 2010, 2020)) +
-            geom_point(size = rel(2), aes(shape = countryname)) +
+        p <- ggplot(out(), aes(x = year, y = value, color = countryname)) +
+            geom_line(aes(linetype = interaction(countryname, legend_keys)), size = rel(.8)) +
+            geom_point(size = rel(2), aes(shape = datatype,
+                                          text = paste("Country:", countryname,
+                                                       "<br />Value:", value,
+                                                       "<br />Year:", year,
+                                                       "<br />Data type:", datatype))) +
             scale_color_colorblind() +
             scale_linetype_discrete() +
-            # guides(colour = FALSE,
-            #        shape = FALSE,
-            #        linetype = guide_legend(override.aes = list(colour = c("black", "black", "#E69F00", "#56B4E9", "#56B4E9", "#56B4E9")))) +
             labs(
-                x = "Year",
-                y = input$indicator
+                #title = paste0("Comparability over time of ", selected_indicator),
+                #subtitle = "Each breack in a series represents a methodological break",
+                x = "",
+                y = selected_indicator
             ) +
             theme_clean() +
             theme(
                 legend.position = "none",
-                legend.title = element_blank(),
-                legend.background = element_rect(linetype = c("blank"))
+                text = element_text(family = "Calibri")
             )
 
-        ggplotly(p, tooltip = c("countryname", "value", "year", "legend_keys"))
+        ggplotly(p, tooltip = "text") %>%
+          style(hoveron = "color") %>%
+          layout(title = list(text = paste0("Comparability over time of ", 
+                                            selected_indicator,
+                                            '<br>',
+                                            '<sup>',
+                                            'Each breack in a series represents a significant methodological change that may affect comparability over time.',
+                                            '</sup>'),
+                              xanchor = "left",
+                              x = 0)
+          )
+    })
+    
+    output$legend <- renderPlotly({
+        p <- ggplot(out(), aes(x = legend_keys, color = countryname)) +
+            geom_linerange(ymin = 0, ymax = 1, size = rel(.8),
+                           aes(linetype = interaction(countryname, legend_keys))) +
+            geom_point(aes(shape = datatype), y = .5, size = rel(2)) + 
+            geom_text(aes(label = legend_keys), y = 1.7, hjust = "left") +
+            scale_y_continuous(limits = c(0,5)) +
+            scale_color_colorblind() +
+            coord_flip() +
+          # facet_wrap(~legend_break, nrow = 1, scales = "free") +
+            theme(
+                legend.position = "none",
+                panel.grid = element_blank(),
+                axis.title = element_blank(),
+                axis.text = element_blank(),
+                axis.ticks = element_blank(),
+                panel.background = element_blank(),
+                text = element_text(family = "Calibri")
+            )
+        
+        ggplotly(p, tooltip = NULL)
+
     })
 }
 

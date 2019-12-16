@@ -3,13 +3,19 @@ library(haven)
 library(tidyverse)
 library(ggthemes)
 library(plotly)
-
+library(extrafont)
+options(encoding="UTF-8")
+# font_import()
+# loadfonts(device = "win")
 
 
 # constants ----------------------------------------------------------------
 
 metadata_path <- "https://development-data-hub-s3-public.s3.amazonaws.com/ddhfiles/506801/povcalnet_comparability.csv"
-
+url_povcal <- a("PovcalNet", href="http://iresearch.worldbank.org/PovcalNet/")
+url_paper <- a("Atamanov et al. (2019) (section 4)", href="http://documents.worldbank.org/curated/en/344401569259571927")
+url_blog <- a("Apples to apples - PovcalNet introduces a new comparability indicator", href="https://blogs.worldbank.org/opendata/apples-apples-povcalnet-introduces-new-comparability-indicator")
+url_data <- a("Poverty Comparability Database", href="https://datacatalog.worldbank.org/node/506801")
 
 # Load data ---------------------------------------------------------------
 # Comparabilty metadata
@@ -43,7 +49,8 @@ df <- pcn %>%
   mutate(
     min_year = min(year), 
     max_year = max(year),
-    legend_keys = paste0(countryname, " (", unique(min_year), "-", unique(max_year), ")")
+    legend_keys = paste0(countryname, ", ", unique(min_year), "-", unique(max_year), " (", unique(datatype), ")")
+    # legend_keys = paste0(countryname, " (", unique(min_year), "-", unique(max_year), ")")
   ) %>%
   ungroup() %>%
   #select(countrycode, countryname, gini, year, code_break, legend_keys) %>%
